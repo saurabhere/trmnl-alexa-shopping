@@ -1,5 +1,6 @@
 // Generate TRMNL markup for all 4 layout sizes.
-// Uses Overflow engine, adaptive text, item icons, and recently-purchased strip.
+// Features: overflow columns, adaptive text, item icons, assigned-to badges,
+// shopping progress bar, time-based greeting, dithered header, witty footer taglines.
 
 const WITTY_EMPTY = [
   "Cart's empty. Fridge is judging you.",
@@ -16,13 +17,34 @@ const WITTY_EMPTY = [
   "Bring! has nothing to bring.",
 ];
 
-function randomWitty(seed) {
-  const idx = (seed || 0) % WITTY_EMPTY.length;
-  return WITTY_EMPTY[idx];
+const FOOTER_TAGLINES = [
+  "Don't forget the snacks.",
+  "Your fridge believes in you.",
+  "Shop smart. Shop e-ink.",
+  "Alexa probably reminded you already.",
+  "Pro tip: buy chocolate.",
+  "You've got this, aisle by aisle.",
+  "Remember: samples are free.",
+  "The list is short. The lines won't be.",
+  "Powered by Bring!, displayed by TRMNL.",
+  "One does not simply skip the dairy aisle.",
+];
+
+function pick(arr, seed) {
+  return arr[(seed || 0) % arr.length];
 }
 
 function escapeHtml(s) {
   return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+}
+
+// Time-based greeting from UTC hour
+function greeting(utcHour) {
+  if (utcHour < 6) return "Late night shop?";
+  if (utcHour < 12) return "Good morning!";
+  if (utcHour < 17) return "Afternoon run";
+  if (utcHour < 21) return "Evening shop";
+  return "Late night list";
 }
 
 function titleBar(title, instance) {
@@ -30,11 +52,11 @@ function titleBar(title, instance) {
 }
 
 function emptyState(seed) {
-  const phrase = randomWitty(seed);
+  const phrase = pick(WITTY_EMPTY, seed);
   return `<div class="flex flex--col gap--small" style="text-align:center"><span class="title title--large" data-value-fit="true" style="font-style:italic">${escapeHtml(phrase)}</span></div>`;
 }
 
-// Adaptive title sizing: fewer items → bigger text to fill available space.
+// Adaptive title sizing
 function titleSizeClass(count, layout) {
   if (layout === "quadrant") {
     if (count <= 2) return "title title--base";
@@ -46,7 +68,6 @@ function titleSizeClass(count, layout) {
     if (count <= 5) return "title title--base";
     return "title title--small";
   }
-  // full — very aggressive sizing since items spread across 2 columns
   if (count === 1) return "title title--xxlarge";
   if (count <= 4) return "title title--xlarge";
   if (count <= 8) return "title title--large";
@@ -54,9 +75,6 @@ function titleSizeClass(count, layout) {
   return "title title--small";
 }
 
-// Pick column strategy based on item count.
-// Force 2 columns when there are enough items to fill them — the overflow engine's
-// "max-cols" mode only splits when items OVERFLOW, which leaves empty space.
 function columnAttrs(count, maxCols) {
   if (count >= 3 && maxCols >= 2) {
     return `data-overflow-cols="2" data-overflow-counter="true"`;
@@ -64,7 +82,6 @@ function columnAttrs(count, maxCols) {
   return `data-overflow-max-cols="${maxCols}" data-overflow-counter="true"`;
 }
 
-// Generic fallback icon: shopping basket as inline SVG.
 const GENERIC_ICON = `data:image/svg+xml,${encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" fill="none" stroke="black" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"><path d="M6 20h36l-4 20H10z"/><path d="M16 20l8-14 8 14"/><line x1="24" y1="26" x2="24" y2="36"/><line x1="16" y1="26" x2="17" y2="36"/><line x1="32" y1="26" x2="31" y2="36"/></svg>')}`;
 
 function iconHtml(item, showIcons) {
@@ -76,7 +93,13 @@ function iconHtml(item, showIcons) {
   return `<div class="icon"><img src="${escapeHtml(item.iconUrl)}" style="${imgStyle}" onerror="this.src='${GENERIC_ICON}'" /></div>`;
 }
 
-// Render items for the main "To Buy" section.
+// Assigned-to badge (for shared lists)
+function assignedBadge(item) {
+  if (!item.assignedTo) return "";
+  return ` <span class="label label--small label--underline">${escapeHtml(item.assignedTo)}</span>`;
+}
+
+// Render items with icons, specs, and assigned-to badges
 function toBuyHtml(items, layout, { showSpec = false, showIcons = false } = {}) {
   const cls = titleSizeClass(items.length, layout);
   return items
@@ -85,24 +108,46 @@ function toBuyHtml(items, layout, { showSpec = false, showIcons = false } = {}) 
         showSpec && item.specification
           ? `<span class="description">${escapeHtml(item.specification)}</span>`
           : "";
+      const badge = assignedBadge(item);
       const icon = iconHtml(item, showIcons);
-      return `<div class="item">${icon}<div class="content"><span class="${cls}">${escapeHtml(item.name)}</span>${spec}</div></div>`;
+      return `<div class="item">${icon}<div class="content"><span class="${cls}">${escapeHtml(item.name)}${badge}</span>${spec}</div></div>`;
     })
     .join("\n");
 }
 
-// Render a compact "Recently Got" strip — inline names, small text, grayed.
-function recentlyStrip(items, showIcons) {
-  if (!items.length) return "";
-  const names = items.map((i) => escapeHtml(i.name)).join(" · ");
-  return `<div class="divider"></div><div class="flex gap--small" style="align-items:center"><span class="label label--small label--gray">Recently got: ${names}</span></div>`;
+// Greeting header with dithered background accent
+function greetingHeader(count, utcHour) {
+  const greet = greeting(utcHour);
+  const suffix = count === 1 ? "1 item to grab" : `${count} items to grab`;
+  return `<div class="bg--gray-70 rounded--medium" style="padding:8px 14px;margin-bottom:4px"><div class="flex gap--small" style="align-items:center;justify-content:space-between"><span class="label label--medium" style="font-weight:700">${greet}</span><span class="label label--small">${suffix}</span></div></div>`;
+}
+
+// Shopping progress bar: purchased vs total
+function progressBar(purchaseCount, recentCount) {
+  const total = purchaseCount + recentCount;
+  if (total === 0) return "";
+  const pct = Math.round((recentCount / total) * 100);
+  return `<div class="progress-bar progress-bar--xsmall"><div class="content"><span class="label label--small label--gray">${recentCount} of ${total} done</span><span class="value value--xxsmall">${pct}%</span></div><div class="track"><div class="fill" style="width:${pct}%"></div></div></div>`;
+}
+
+// Recently-got strip + witty footer tagline
+function footerStrip(recentItems, seed) {
+  const parts = [];
+  if (recentItems.length) {
+    const names = recentItems.map((i) => escapeHtml(i.name)).join(" · ");
+    parts.push(`<div class="divider"></div><div class="flex gap--small" style="align-items:center"><span class="label label--small label--gray">Got: ${names}</span></div>`);
+  }
+  const tagline = pick(FOOTER_TAGLINES, seed + 3);
+  parts.push(`<div class="flex" style="justify-content:center"><span class="label label--small label--gray" style="font-style:italic">${escapeHtml(tagline)}</span></div>`);
+  return parts.join("");
 }
 
 export function generateMarkup(purchase, recently, updatedAt, listName) {
   const count = purchase.length;
   const countLabel = `${count} item${count !== 1 ? "s" : ""}`;
   const displayName = listName || "Shopping List";
-  const seed = new Date(updatedAt || Date.now()).getUTCHours?.() || Math.floor(Date.now() / 3600000);
+  const utcHour = new Date().getUTCHours();
+  const seed = utcHour;
 
   const fullInstance = displayName !== "Shopping List"
     ? `${displayName} · ${countLabel} · ${updatedAt}`
@@ -113,42 +158,44 @@ export function generateMarkup(purchase, recently, updatedAt, listName) {
 
   const recentlySlice = recently.slice(0, 5);
 
-  // -- Full: To Buy fills main area, Recently Got as compact strip at bottom --
+  // -- Full --
   let fullContent;
   if (count === 0) {
     fullContent = `<div class="layout layout--center">${emptyState(seed)}</div>`;
   } else {
+    const header = greetingHeader(count, utcHour);
+    const progress = progressBar(count, recentlySlice.length);
     const mainItems = toBuyHtml(purchase, "full", { showSpec: true, showIcons: true });
-    const recentStrip = recentlyStrip(recentlySlice);
+    const footer = footerStrip(recentlySlice, seed);
     const colAttrs = columnAttrs(count, 2);
-    fullContent = `<div class="layout layout--col gap"><div class="columns stretch-y" ${colAttrs}><div class="column">${mainItems}</div></div>${recentStrip}</div>`;
+    fullContent = `<div class="layout layout--col gap--small">${header}<div class="columns stretch-y" ${colAttrs}><div class="column">${mainItems}</div></div>${progress}${footer}</div>`;
   }
   const full = `${fullContent}${titleBar("Shopping List", fullInstance)}`;
 
-  // -- Half Horizontal: same structure, tighter --
+  // -- Half Horizontal --
   let halfHContent;
   if (count === 0) {
     halfHContent = `<div class="layout layout--center">${emptyState(seed)}</div>`;
   } else {
     const mainItems = toBuyHtml(purchase, "half", { showIcons: true });
-    const recentStrip = recentlyStrip(recentlySlice.slice(0, 3));
+    const footer = footerStrip(recentlySlice.slice(0, 3), seed);
     const colAttrs = columnAttrs(count, 2);
-    halfHContent = `<div class="layout layout--col gap"><div class="columns stretch-y" ${colAttrs}><div class="column">${mainItems}</div></div>${recentStrip}</div>`;
+    halfHContent = `<div class="layout layout--col gap--small"><div class="columns stretch-y" ${colAttrs}><div class="column">${mainItems}</div></div>${footer}</div>`;
   }
   const halfH = `${halfHContent}${titleBar("Shopping List", shortInstance)}`;
 
-  // -- Half Vertical: single column --
+  // -- Half Vertical --
   let halfVContent;
   if (count === 0) {
     halfVContent = `<div class="layout layout--center">${emptyState(seed)}</div>`;
   } else {
     const mainItems = toBuyHtml(purchase, "half", { showSpec: true, showIcons: true });
-    const recentStrip = recentlyStrip(recentlySlice.slice(0, 3));
-    halfVContent = `<div class="layout layout--col gap"><div class="columns stretch-y" data-overflow-max-cols="1" data-overflow-counter="true"><div class="column">${mainItems}</div></div>${recentStrip}</div>`;
+    const footer = footerStrip(recentlySlice.slice(0, 3), seed);
+    halfVContent = `<div class="layout layout--col gap--small"><div class="columns stretch-y" data-overflow-max-cols="1" data-overflow-counter="true"><div class="column">${mainItems}</div></div>${footer}</div>`;
   }
   const halfV = `${halfVContent}${titleBar("Shopping List", shortInstance)}`;
 
-  // -- Quadrant: compact, no recently --
+  // -- Quadrant: compact, no frills --
   let quadContent;
   if (count === 0) {
     quadContent = `<div class="layout layout--center">${emptyState(seed)}</div>`;

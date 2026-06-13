@@ -100,17 +100,31 @@ export async function bringItemDetails(accessToken, userUuid, publicUuid, listUu
 }
 
 export async function bringItems(accessToken, userUuid, publicUuid, listUuid, locale) {
-  // Fetch items, details, and translations in parallel
-  const [itemsRes, details, translations] = await Promise.all([
+  // Fetch items, details, translations, and list users in parallel
+  const [itemsRes, details, translations, usersRes] = await Promise.all([
     fetch(`${BASE}/bringlists/${listUuid}`, {
       headers: authHeaders(accessToken, userUuid, publicUuid),
     }),
     bringItemDetails(accessToken, userUuid, publicUuid, listUuid),
     getTranslations(locale),
+    fetch(`${BASE}/bringlists/${listUuid}/users`, {
+      headers: authHeaders(accessToken, userUuid, publicUuid),
+    }).catch(() => null),
   ]);
 
   if (!itemsRes.ok) throw new Error(`Bring items failed (${itemsRes.status})`);
   const data = await itemsRes.json();
+
+  // Build user UUID → name lookup for assigned-to badges
+  const userMap = {};
+  try {
+    if (usersRes && usersRes.ok) {
+      const usersData = await usersRes.json();
+      for (const u of usersData.users || []) {
+        if (u.publicUuid) userMap[u.publicUuid] = u.name || u.email || "";
+      }
+    }
+  } catch { /* non-fatal */ }
 
   // Build a lookup: itemId -> detail (for icon overrides)
   const detailMap = {};
@@ -136,6 +150,7 @@ export async function bringItems(accessToken, userUuid, publicUuid, listUuid, lo
           specification: (i.specification || "").trim(),
           iconUrl: customImageUrl || iconUrl(iconKey),
           category: (detail.userSectionId || "").trim(),
+          assignedTo: userMap[detail.assignedTo] || "",
         };
       });
   }
