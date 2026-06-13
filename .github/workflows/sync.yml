@@ -1,0 +1,34 @@
+name: Sync Alexa shopping list to TRMNL
+
+# GitHub Actions cron granularity is 5 minutes minimum, and shared runners can
+# add a few minutes of queueing delay. This keeps the TRMNL server-side state
+# fresh; the e-ink device then picks it up on its own refresh interval. For
+# truly sub-minute pushes, run `sync.py --watch` on an always-on box instead.
+on:
+  schedule:
+    - cron: "*/5 * * * *"
+  workflow_dispatch: {}
+
+concurrency:
+  group: trmnl-sync
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -r requirements.txt
+      - name: Push list to TRMNL
+        env:
+          BRING_EMAIL: ${{ secrets.BRING_EMAIL }}
+          BRING_PASSWORD: ${{ secrets.BRING_PASSWORD }}
+          BRING_LIST_NAME: ${{ secrets.BRING_LIST_NAME }}
+          BRING_COUNTRY: ${{ secrets.BRING_COUNTRY }}
+          TRMNL_PLUGIN_UUID: ${{ secrets.TRMNL_PLUGIN_UUID }}
+        # --force because each Actions run starts with no .last_state cache, so
+        # we always push the current truth (TRMNL only redraws if it changed).
+        run: python sync.py --force

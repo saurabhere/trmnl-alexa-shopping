@@ -1,0 +1,43 @@
+{% comment %}
+  TRMNL "Full" layout for the Alexa/Bring shopping list.
+  Paste into the Full tab of the plugin Markup editor.
+
+  Uses the TRMNL Overflow engine: data-overflow-max-cols auto-distributes items
+  into columns based on actual measured height; data-overflow-counter adds
+  "and X more" when items don't fit. No manual column math needed.
+
+  Merge vars: items[], count, updated_at
+{% endcomment %}
+
+<div class="layout">
+  {% if count == 0 %}
+    <div class="layout layout--center">
+      <div class="flex flex--col gap--small">
+        <span class="value value--large">All done</span>
+        <span class="label">Shopping list is empty</span>
+      </div>
+    </div>
+  {% else %}
+    <div class="columns" data-overflow-max-cols="2" data-overflow-counter="true">
+      <div class="column">
+        {% for item in items %}
+          <div class="item">
+            <div class="meta"></div>
+            <div class="content">
+              <span class="title title--small">{{ item.name }}</span>
+              {% if item.specification != "" %}
+                <span class="description">{{ item.specification }}</span>
+              {% endif %}
+            </div>
+          </div>
+        {% endfor %}
+      </div>
+    </div>
+  {% endif %}
+</div>
+
+<div class="title_bar">
+  <img class="image" src="https://trmnl.com/images/plugins/trmnl--render.svg" />
+  <span class="title">Shopping List</span>
+  <span class="instance">{{ count }} item{% if count != 1 %}s{% endif %} · {{ updated_at }}</span>
+</div>
