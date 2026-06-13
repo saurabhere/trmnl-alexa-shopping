@@ -46,12 +46,22 @@ function titleSizeClass(count, layout) {
     if (count <= 5) return "title title--base";
     return "title title--small";
   }
-  // full
+  // full — very aggressive sizing since items spread across 2 columns
   if (count === 1) return "title title--xxlarge";
-  if (count === 2) return "title title--xlarge";
-  if (count <= 4) return "title title--large";
-  if (count <= 8) return "title title--base";
+  if (count <= 4) return "title title--xlarge";
+  if (count <= 8) return "title title--large";
+  if (count <= 14) return "title title--base";
   return "title title--small";
+}
+
+// Pick column strategy based on item count.
+// Force 2 columns when there are enough items to fill them — the overflow engine's
+// "max-cols" mode only splits when items OVERFLOW, which leaves empty space.
+function columnAttrs(count, maxCols) {
+  if (count >= 3 && maxCols >= 2) {
+    return `data-overflow-cols="2" data-overflow-counter="true"`;
+  }
+  return `data-overflow-max-cols="${maxCols}" data-overflow-counter="true"`;
 }
 
 // Generic fallback icon: shopping basket as inline SVG.
@@ -110,7 +120,8 @@ export function generateMarkup(purchase, recently, updatedAt, listName) {
   } else {
     const mainItems = toBuyHtml(purchase, "full", { showSpec: true, showIcons: true });
     const recentStrip = recentlyStrip(recentlySlice);
-    fullContent = `<div class="layout layout--col gap"><div class="columns stretch-y" data-overflow-max-cols="2" data-overflow-counter="true"><div class="column">${mainItems}</div></div>${recentStrip}</div>`;
+    const colAttrs = columnAttrs(count, 2);
+    fullContent = `<div class="layout layout--col gap"><div class="columns stretch-y" ${colAttrs}><div class="column">${mainItems}</div></div>${recentStrip}</div>`;
   }
   const full = `${fullContent}${titleBar("Shopping List", fullInstance)}`;
 
@@ -121,7 +132,8 @@ export function generateMarkup(purchase, recently, updatedAt, listName) {
   } else {
     const mainItems = toBuyHtml(purchase, "half", { showIcons: true });
     const recentStrip = recentlyStrip(recentlySlice.slice(0, 3));
-    halfHContent = `<div class="layout layout--col gap"><div class="columns stretch-y" data-overflow-max-cols="2" data-overflow-counter="true"><div class="column">${mainItems}</div></div>${recentStrip}</div>`;
+    const colAttrs = columnAttrs(count, 2);
+    halfHContent = `<div class="layout layout--col gap"><div class="columns stretch-y" ${colAttrs}><div class="column">${mainItems}</div></div>${recentStrip}</div>`;
   }
   const halfH = `${halfHContent}${titleBar("Shopping List", shortInstance)}`;
 
@@ -141,7 +153,8 @@ export function generateMarkup(purchase, recently, updatedAt, listName) {
   if (count === 0) {
     quadContent = `<div class="layout">${emptyState(seed)}</div>`;
   } else {
-    quadContent = `<div class="layout layout--col gap"><div class="columns stretch-y" data-overflow-max-cols="2" data-overflow-counter="true"><div class="column">${toBuyHtml(purchase, "quadrant", { showIcons: true })}</div></div></div>`;
+    const colAttrs = columnAttrs(count, 2);
+    quadContent = `<div class="layout layout--col gap"><div class="columns stretch-y" ${colAttrs}><div class="column">${toBuyHtml(purchase, "quadrant", { showIcons: true })}</div></div></div>`;
   }
   const quadrant = `${quadContent}${titleBar("Shopping", shortInstance)}`;
 
