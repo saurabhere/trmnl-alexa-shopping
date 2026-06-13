@@ -89,6 +89,26 @@ export function installPage(code, callbackUrl, error = "") {
       <input type="email" id="email" name="email" required placeholder="you@example.com">
       <label for="password">Bring! Password</label>
       <input type="password" id="password" name="password" required>
+      <label for="locale">Item Language</label>
+      <select id="locale" name="locale" style="margin-bottom:16px; padding:10px 12px; border:1px solid #ddd; border-radius:8px; font-size:16px; width:100%; appearance:auto;">
+        <option value="en-US" selected>English</option>
+        <option value="de-DE">Deutsch</option>
+        <option value="de-CH">Deutsch (Schweiz)</option>
+        <option value="de-AT">Deutsch (Österreich)</option>
+        <option value="es-ES">Español</option>
+        <option value="fr-FR">Français</option>
+        <option value="fr-CH">Français (Suisse)</option>
+        <option value="hu-HU">Magyar</option>
+        <option value="it-IT">Italiano</option>
+        <option value="it-CH">Italiano (Svizzera)</option>
+        <option value="nb-NO">Norsk</option>
+        <option value="nl-NL">Nederlands</option>
+        <option value="pl-PL">Polski</option>
+        <option value="pt-BR">Português</option>
+        <option value="ru-RU">Русский</option>
+        <option value="sv-SE">Svenska</option>
+        <option value="tr-TR">Türkçe</option>
+      </select>
       <button type="submit">Connect to Bring!</button>
     </form>
     <p class="help">
@@ -100,7 +120,7 @@ export function installPage(code, callbackUrl, error = "") {
 </html>`;
 }
 
-export function listPickerPage(code, callbackUrl, email, password, lists, defaultUuid) {
+export function listPickerPage(code, callbackUrl, email, password, lists, defaultUuid, locale) {
   const options = lists
     .map((l) => {
       const selected = l.uuid === defaultUuid ? " selected" : "";
@@ -140,6 +160,7 @@ export function listPickerPage(code, callbackUrl, email, password, lists, defaul
       <input type="hidden" name="callback_url" value="${escapeAttr(callbackUrl)}">
       <input type="hidden" name="email" value="${escapeAttr(email)}">
       <input type="hidden" name="password" value="${escapeAttr(password)}">
+      <input type="hidden" name="locale" value="${escapeAttr(locale || "en-US")}">
       <label for="list_uuid">List</label>
       <select id="list_uuid" name="list_uuid">
         ${options}

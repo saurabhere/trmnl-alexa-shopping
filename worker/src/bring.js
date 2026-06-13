@@ -6,22 +6,23 @@
 const BASE = "https://api.getbring.com/rest/v2";
 const API_KEY = "cof4Nc6D8saplXjE3h3HXqHH8m7VU2i1Gs0g85Sp";
 const ICON_BASE = "https://web.getbring.com/assets/images/items";
-const LOCALE_URL = "https://web.getbring.com/locale/articles.en-US.json";
+const LOCALE_BASE = "https://web.getbring.com/locale/articles";
 
-// Cache the translation map for the lifetime of the Worker instance (~minutes).
-let _translationCache = null;
+// Cache translation maps per locale for the Worker instance lifetime (~minutes).
+const _translationCache = {};
 
-async function getTranslations() {
-  if (_translationCache) return _translationCache;
+async function getTranslations(locale) {
+  const loc = locale || "en-US";
+  if (_translationCache[loc]) return _translationCache[loc];
   try {
-    const res = await fetch(LOCALE_URL);
+    const res = await fetch(`${LOCALE_BASE}.${loc}.json`);
     if (res.ok) {
-      _translationCache = await res.json();
+      _translationCache[loc] = await res.json();
     }
   } catch {
     // Non-fatal — we'll just show the raw itemId (often German)
   }
-  return _translationCache || {};
+  return _translationCache[loc] || {};
 }
 
 function baseHeaders() {
@@ -98,14 +99,14 @@ export async function bringItemDetails(accessToken, userUuid, publicUuid, listUu
   return Array.isArray(data) ? data : data.items || [];
 }
 
-export async function bringItems(accessToken, userUuid, publicUuid, listUuid) {
+export async function bringItems(accessToken, userUuid, publicUuid, listUuid, locale) {
   // Fetch items, details, and translations in parallel
   const [itemsRes, details, translations] = await Promise.all([
     fetch(`${BASE}/bringlists/${listUuid}`, {
       headers: authHeaders(accessToken, userUuid, publicUuid),
     }),
     bringItemDetails(accessToken, userUuid, publicUuid, listUuid),
-    getTranslations(),
+    getTranslations(locale),
   ]);
 
   if (!itemsRes.ok) throw new Error(`Bring items failed (${itemsRes.status})`);
@@ -142,11 +143,11 @@ export async function bringItems(accessToken, userUuid, publicUuid, listUuid) {
   return { purchase: mapItems(purchase), recently: mapItems(recently) };
 }
 
-export async function fetchShoppingList(email, password, listUuid) {
+export async function fetchShoppingList(email, password, listUuid, locale) {
   const auth = await bringLogin(email, password);
   const uuid = listUuid || auth.bringListUUID;
   if (!uuid) throw new Error("No Bring list found");
-  const result = await bringItems(auth.access_token, auth.uuid, auth.publicUuid, uuid);
+  const result = await bringItems(auth.access_token, auth.uuid, auth.publicUuid, uuid, locale);
   return result;
 }
 

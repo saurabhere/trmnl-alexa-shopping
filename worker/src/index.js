@@ -56,6 +56,7 @@ async function handleInstallPost(request, env) {
   const callbackUrl = form.get("callback_url") || "";
   const email = (form.get("email") || "").trim();
   const password = form.get("password") || "";
+  const locale = form.get("locale") || "en-US";
 
   if (!code || !callbackUrl) return html(installPage(code, callbackUrl, "Missing installation parameters."), 400);
   if (!email || !password) return html(installPage(code, callbackUrl, "Email and password are required."), 400);
@@ -72,11 +73,11 @@ async function handleInstallPost(request, env) {
 
   // If only one list, skip the picker
   if (lists.length <= 1) {
-    return finishInstall(code, callbackUrl, email, password, defaultUuid, lists[0]?.name || "Shopping List", env);
+    return finishInstall(code, callbackUrl, email, password, defaultUuid, lists[0]?.name || "Shopping List", locale, env);
   }
 
   // Multiple lists → show picker
-  return html(listPickerPage(code, callbackUrl, email, password, lists, defaultUuid));
+  return html(listPickerPage(code, callbackUrl, email, password, lists, defaultUuid, locale));
 }
 
 // ---------------------------------------------------------------------------
@@ -90,6 +91,7 @@ async function handlePickList(request, env) {
   const email = (form.get("email") || "").trim();
   const password = form.get("password") || "";
   const listUuid = form.get("list_uuid") || "";
+  const locale = form.get("locale") || "en-US";
 
   if (!code || !callbackUrl || !email || !password || !listUuid) {
     return html(installPage(code, callbackUrl, "Missing parameters. Please try again."), 400);
@@ -105,14 +107,14 @@ async function handlePickList(request, env) {
     // Non-fatal — we'll use the default name
   }
 
-  return finishInstall(code, callbackUrl, email, password, listUuid, listName, env);
+  return finishInstall(code, callbackUrl, email, password, listUuid, listName, locale, env);
 }
 
 // ---------------------------------------------------------------------------
 // Shared: exchange TRMNL code, encrypt creds, store in KV, redirect
 // ---------------------------------------------------------------------------
 
-async function finishInstall(code, callbackUrl, email, password, listUuid, listName, env) {
+async function finishInstall(code, callbackUrl, email, password, listUuid, listName, locale, env) {
   // Exchange TRMNL code for access_token
   const tokenRes = await fetch(TRMNL_TOKEN_URL, {
     method: "POST",
@@ -126,7 +128,7 @@ async function finishInstall(code, callbackUrl, email, password, listUuid, listN
   const accessToken = tokenData.access_token;
 
   // Encrypt and store
-  const creds = JSON.stringify({ email, password, listUuid, listName });
+  const creds = JSON.stringify({ email, password, listUuid, listName, locale });
   const encrypted = await encrypt(creds, env.ENCRYPTION_KEY);
   await env.USERS.put(`token:${accessToken}`, encrypted);
 
@@ -169,7 +171,7 @@ async function handleMarkup(request, env) {
 
   let result;
   try {
-    result = await fetchShoppingList(creds.email, creds.password, creds.listUuid);
+    result = await fetchShoppingList(creds.email, creds.password, creds.listUuid, creds.locale);
   } catch (e) {
     const msg = e.message.includes("401")
       ? "Bring! login failed — update your credentials."

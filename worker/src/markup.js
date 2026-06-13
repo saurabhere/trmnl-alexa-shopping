@@ -58,11 +58,13 @@ const GENERIC_ICON = `data:image/svg+xml,${encodeURIComponent('<svg xmlns="http:
 
 function iconHtml(item, showIcons) {
   if (!showIcons) return `<div class="meta"></div>`;
-  const imgClass = `w--[6cqw] h--[6cqw] portrait:w--[10cqw] portrait:h--[10cqw]`;
+  // Fixed pixel size for icons so they don't inflate row height.
+  // The item row height is driven by the text; the icon fits within it.
+  const imgStyle = `filter:brightness(0); width:24px; height:24px; object-fit:contain; vertical-align:middle`;
   if (!item.iconUrl) {
-    return `<div class="icon"><img src="${GENERIC_ICON}" class="${imgClass}" style="filter:brightness(0)" /></div>`;
+    return `<div class="icon"><img src="${GENERIC_ICON}" style="${imgStyle}" /></div>`;
   }
-  return `<div class="icon"><img src="${escapeHtml(item.iconUrl)}" class="${imgClass}" style="filter:brightness(0)" onerror="this.src='${GENERIC_ICON}'" /></div>`;
+  return `<div class="icon"><img src="${escapeHtml(item.iconUrl)}" style="${imgStyle}" onerror="this.src='${GENERIC_ICON}'" /></div>`;
 }
 
 // Render a list of items as HTML.
