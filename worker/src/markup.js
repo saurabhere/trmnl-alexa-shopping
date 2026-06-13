@@ -31,7 +31,7 @@ function titleBar(title, instance) {
 
 function emptyState(seed) {
   const phrase = randomWitty(seed);
-  return `<div class="layout layout--center"><div class="flex flex--col gap--small"><span class="title title--large" data-value-fit="true">${escapeHtml(phrase)}</span></div></div>`;
+  return `<div class="flex flex--col gap--small" style="text-align:center"><span class="title title--large" data-value-fit="true">${escapeHtml(phrase)}</span></div>`;
 }
 
 // Adaptive title sizing: fewer items → bigger text to fill available space.
@@ -116,7 +116,7 @@ export function generateMarkup(purchase, recently, updatedAt, listName) {
   // -- Full: To Buy fills main area, Recently Got as compact strip at bottom --
   let fullContent;
   if (count === 0) {
-    fullContent = `<div class="layout">${emptyState(seed)}</div>`;
+    fullContent = `<div class="layout layout--center">${emptyState(seed)}</div>`;
   } else {
     const mainItems = toBuyHtml(purchase, "full", { showSpec: true, showIcons: true });
     const recentStrip = recentlyStrip(recentlySlice);
@@ -128,7 +128,7 @@ export function generateMarkup(purchase, recently, updatedAt, listName) {
   // -- Half Horizontal: same structure, tighter --
   let halfHContent;
   if (count === 0) {
-    halfHContent = `<div class="layout">${emptyState(seed)}</div>`;
+    halfHContent = `<div class="layout layout--center">${emptyState(seed)}</div>`;
   } else {
     const mainItems = toBuyHtml(purchase, "half", { showIcons: true });
     const recentStrip = recentlyStrip(recentlySlice.slice(0, 3));
@@ -140,7 +140,7 @@ export function generateMarkup(purchase, recently, updatedAt, listName) {
   // -- Half Vertical: single column --
   let halfVContent;
   if (count === 0) {
-    halfVContent = `<div class="layout">${emptyState(seed)}</div>`;
+    halfVContent = `<div class="layout layout--center">${emptyState(seed)}</div>`;
   } else {
     const mainItems = toBuyHtml(purchase, "half", { showSpec: true, showIcons: true });
     const recentStrip = recentlyStrip(recentlySlice.slice(0, 3));
@@ -151,7 +151,7 @@ export function generateMarkup(purchase, recently, updatedAt, listName) {
   // -- Quadrant: compact, no recently --
   let quadContent;
   if (count === 0) {
-    quadContent = `<div class="layout">${emptyState(seed)}</div>`;
+    quadContent = `<div class="layout layout--center">${emptyState(seed)}</div>`;
   } else {
     const colAttrs = columnAttrs(count, 2);
     quadContent = `<div class="layout layout--col gap"><div class="columns stretch-y" ${colAttrs}><div class="column">${toBuyHtml(purchase, "quadrant", { showIcons: true })}</div></div></div>`;
