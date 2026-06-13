@@ -96,10 +96,10 @@ export function helpPage() {
   <div class="card">
     <table>
       <tr><th>Layout</th><th>Best for</th><th>Features</th></tr>
-      <tr><td><strong>Full</strong></td><td>Dedicated screen</td><td>Up to 2 columns, item notes, adaptive text</td></tr>
-      <tr><td><strong>Half Horizontal</strong></td><td>Side-by-side mashup</td><td>Up to 2 columns, names only</td></tr>
-      <tr><td><strong>Half Vertical</strong></td><td>Stacked mashup</td><td>Single column, item notes</td></tr>
-      <tr><td><strong>Quadrant</strong></td><td>4-plugin mashup</td><td>Up to 2 columns, compact</td></tr>
+      <tr><td><strong>Full</strong></td><td>Dedicated screen</td><td>Greeting header, 2 columns, icons, item notes, progress bar, recently-got strip, witty tagline</td></tr>
+      <tr><td><strong>Half Horizontal</strong></td><td>Side-by-side mashup</td><td>2 columns, icons, recently-got strip, witty tagline</td></tr>
+      <tr><td><strong>Half Vertical</strong></td><td>Stacked mashup</td><td>Single column, icons, item notes, witty tagline</td></tr>
+      <tr><td><strong>Quadrant</strong></td><td>4-plugin mashup</td><td>2 columns, icons, compact</td></tr>
     </table>
     <p style="margin-top:8px;font-size:13px;color:#666">All layouts auto-fill available space and show "and X more" when items overflow.</p>
   </div>
@@ -119,10 +119,13 @@ export function helpPage() {
   <p class="faq-a">The Bring! API requires an email + password login. If you signed up with Google/Apple, go to Bring! app → Profile → account settings and <strong>add a password</strong> to your existing account. Your lists stay the same.</p>
 
   <p class="faq-q">Can I show a specific list?</p>
-  <p class="faq-a">Yes! If your Bring! account has multiple lists, the install flow lets you pick which one to display. To switch lists later, reinstall the plugin.</p>
+  <p class="faq-a">Yes! If your Bring! account has multiple lists, the install flow lets you pick which one to display. To switch lists later, go to the plugin management page — no reinstall needed.</p>
+
+  <p class="faq-q">Can I change the language?</p>
+  <p class="faq-a">Yes. The install flow and the management page both let you pick from 17 languages. Item names from Bring!'s catalog are translated automatically — custom items you typed yourself stay as-is.</p>
 
   <p class="faq-q">What does the plugin show when the list is empty?</p>
-  <p class="faq-a">A witty rotating message — like "Cart's empty. Fridge is judging you." or "Achievement unlocked: empty list." It changes periodically.</p>
+  <p class="faq-a">A witty rotating message in italic — like <em>"Cart's empty. Fridge is judging you."</em> or <em>"Achievement unlocked: empty list."</em> It changes hourly.</p>
 
   <h2>Troubleshooting</h2>
 
@@ -139,8 +142,8 @@ export function helpPage() {
     <li>Your device may not have refreshed yet — wait for the next cycle or force-refresh from the TRMNL dashboard.</li>
   </ul>
 
-  <h3>I want to change which list is displayed</h3>
-  <p>Uninstall the plugin from your TRMNL dashboard, then reinstall it — you'll get the list picker again.</p>
+  <h3>I want to change which list is displayed or the language</h3>
+  <p>Go to the plugin management page (from your TRMNL dashboard → plugin settings). Sign in with your Bring! credentials, pick a new list or language, and save. No reinstall needed — changes take effect on the next device refresh.</p>
 
   <div class="footer">
     Bring! Shopping List for TRMNL · Made by <a href="https://github.com/saurabhere" target="_blank">Saurabh Gupta</a>
