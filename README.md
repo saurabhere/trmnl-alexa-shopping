@@ -8,7 +8,7 @@ Show your [Bring!](https://www.getbring.com/) shopping list on a [TRMNL](https:/
 
 | With items | Empty list |
 |:----------:|:----------:|
-| ![Full layout with items](screenshots/full-with-items.png) | *Witty rotating phrases when your list is empty* |
+| ![Full layout with items](screenshots/full-with-items.png) | ![Empty state](screenshots/empty-state.png) |
 
 ## How it works
 
