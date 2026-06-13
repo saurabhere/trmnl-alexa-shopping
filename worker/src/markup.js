@@ -1,5 +1,5 @@
 // Generate TRMNL markup for all 4 layout sizes.
-// Uses Overflow engine, adaptive text, item icons, group headers, and recently-purchased section.
+// Uses Overflow engine, adaptive text, item icons, and recently-purchased strip.
 
 const WITTY_EMPTY = [
   "Cart's empty. Fridge is judging you.",
@@ -34,7 +34,7 @@ function emptyState(seed) {
   return `<div class="layout layout--center"><div class="flex flex--col gap--small"><span class="title title--large" data-value-fit="true">${escapeHtml(phrase)}</span></div></div>`;
 }
 
-// Adaptive title sizing: fewer items → bigger text.
+// Adaptive title sizing: fewer items → bigger text to fill available space.
 function titleSizeClass(count, layout) {
   if (layout === "quadrant") {
     if (count <= 2) return "title title--base";
@@ -46,6 +46,7 @@ function titleSizeClass(count, layout) {
     if (count <= 5) return "title title--base";
     return "title title--small";
   }
+  // full
   if (count === 1) return "title title--xxlarge";
   if (count === 2) return "title title--xlarge";
   if (count <= 4) return "title title--large";
@@ -58,8 +59,6 @@ const GENERIC_ICON = `data:image/svg+xml,${encodeURIComponent('<svg xmlns="http:
 
 function iconHtml(item, showIcons) {
   if (!showIcons) return `<div class="meta"></div>`;
-  // Fixed pixel size for icons so they don't inflate row height.
-  // The item row height is driven by the text; the icon fits within it.
   const imgStyle = `filter:brightness(0); width:24px; height:24px; object-fit:contain; vertical-align:middle`;
   if (!item.iconUrl) {
     return `<div class="icon"><img src="${GENERIC_ICON}" style="${imgStyle}" /></div>`;
@@ -67,25 +66,26 @@ function iconHtml(item, showIcons) {
   return `<div class="icon"><img src="${escapeHtml(item.iconUrl)}" style="${imgStyle}" onerror="this.src='${GENERIC_ICON}'" /></div>`;
 }
 
-// Render a list of items as HTML.
-function itemsHtml(items, layout, { showSpec = false, showIcons = false, gray = false } = {}) {
+// Render items for the main "To Buy" section.
+function toBuyHtml(items, layout, { showSpec = false, showIcons = false } = {}) {
   const cls = titleSizeClass(items.length, layout);
-  const grayClass = gray ? " label--gray" : "";
   return items
     .map((item) => {
       const spec =
         showSpec && item.specification
-          ? `<span class="description${grayClass}">${escapeHtml(item.specification)}</span>`
+          ? `<span class="description">${escapeHtml(item.specification)}</span>`
           : "";
       const icon = iconHtml(item, showIcons);
-      return `<div class="item">${icon}<div class="content"><span class="${cls}${grayClass}">${escapeHtml(item.name)}</span>${spec}</div></div>`;
+      return `<div class="item">${icon}<div class="content"><span class="${cls}">${escapeHtml(item.name)}</span>${spec}</div></div>`;
     })
     .join("\n");
 }
 
-// Group header label (e.g., "🛒 To Buy", "✓ Recently Got")
-function groupHeader(text) {
-  return `<span class="label label--medium group-header" data-group-header="true">${text}</span>`;
+// Render a compact "Recently Got" strip — inline names, small text, grayed.
+function recentlyStrip(items, showIcons) {
+  if (!items.length) return "";
+  const names = items.map((i) => escapeHtml(i.name)).join(" · ");
+  return `<div class="divider"></div><div class="flex gap--small" style="align-items:center"><span class="label label--small label--gray">Recently got: ${names}</span></div>`;
 }
 
 export function generateMarkup(purchase, recently, updatedAt, listName) {
@@ -101,62 +101,47 @@ export function generateMarkup(purchase, recently, updatedAt, listName) {
     ? `${displayName} · ${countLabel}`
     : countLabel;
 
-  // Limit recently-purchased to a few items (don't overwhelm the screen)
   const recentlySlice = recently.slice(0, 5);
-  const showRecent = recentlySlice.length > 0;
 
-  // -- Full: group headers + recently purchased section --
+  // -- Full: To Buy fills main area, Recently Got as compact strip at bottom --
   let fullContent;
   if (count === 0) {
     fullContent = `<div class="layout">${emptyState(seed)}</div>`;
   } else {
-    let columnContent = "";
-    columnContent += groupHeader("🛒 To Buy");
-    columnContent += itemsHtml(purchase, "full", { showSpec: true, showIcons: true });
-    if (showRecent) {
-      columnContent += groupHeader("✓ Recently Got");
-      columnContent += itemsHtml(recentlySlice, "full", { showSpec: false, showIcons: true, gray: true });
-    }
-    fullContent = `<div class="layout layout--col layout--stretch gap"><div class="columns" data-overflow-max-cols="2" data-overflow-counter="true"><div class="column">${columnContent}</div></div></div>`;
+    const mainItems = toBuyHtml(purchase, "full", { showSpec: true, showIcons: true });
+    const recentStrip = recentlyStrip(recentlySlice);
+    fullContent = `<div class="layout layout--col gap"><div class="columns stretch-y" data-overflow-max-cols="2" data-overflow-counter="true"><div class="column">${mainItems}</div></div>${recentStrip}</div>`;
   }
   const full = `${fullContent}${titleBar("Shopping List", fullInstance)}`;
 
-  // -- Half Horizontal: group headers, no specs --
+  // -- Half Horizontal: same structure, tighter --
   let halfHContent;
   if (count === 0) {
     halfHContent = `<div class="layout">${emptyState(seed)}</div>`;
   } else {
-    let columnContent = groupHeader("🛒 To Buy");
-    columnContent += itemsHtml(purchase, "half", { showIcons: true });
-    if (showRecent) {
-      columnContent += groupHeader("✓ Got");
-      columnContent += itemsHtml(recentlySlice.slice(0, 3), "half", { showIcons: true, gray: true });
-    }
-    halfHContent = `<div class="layout layout--col layout--stretch gap"><div class="columns" data-overflow-max-cols="2" data-overflow-counter="true"><div class="column">${columnContent}</div></div></div>`;
+    const mainItems = toBuyHtml(purchase, "half", { showIcons: true });
+    const recentStrip = recentlyStrip(recentlySlice.slice(0, 3));
+    halfHContent = `<div class="layout layout--col gap"><div class="columns stretch-y" data-overflow-max-cols="2" data-overflow-counter="true"><div class="column">${mainItems}</div></div>${recentStrip}</div>`;
   }
   const halfH = `${halfHContent}${titleBar("Shopping List", shortInstance)}`;
 
-  // -- Half Vertical: group headers + specs --
+  // -- Half Vertical: single column --
   let halfVContent;
   if (count === 0) {
     halfVContent = `<div class="layout">${emptyState(seed)}</div>`;
   } else {
-    let columnContent = groupHeader("🛒 To Buy");
-    columnContent += itemsHtml(purchase, "half", { showSpec: true, showIcons: true });
-    if (showRecent) {
-      columnContent += groupHeader("✓ Got");
-      columnContent += itemsHtml(recentlySlice.slice(0, 3), "half", { showIcons: true, gray: true });
-    }
-    halfVContent = `<div class="layout layout--col layout--stretch gap"><div class="columns" data-overflow-max-cols="1" data-overflow-counter="true"><div class="column">${columnContent}</div></div></div>`;
+    const mainItems = toBuyHtml(purchase, "half", { showSpec: true, showIcons: true });
+    const recentStrip = recentlyStrip(recentlySlice.slice(0, 3));
+    halfVContent = `<div class="layout layout--col gap"><div class="columns stretch-y" data-overflow-max-cols="1" data-overflow-counter="true"><div class="column">${mainItems}</div></div>${recentStrip}</div>`;
   }
   const halfV = `${halfVContent}${titleBar("Shopping List", shortInstance)}`;
 
-  // -- Quadrant: compact, icons, no recently --
+  // -- Quadrant: compact, no recently --
   let quadContent;
   if (count === 0) {
     quadContent = `<div class="layout">${emptyState(seed)}</div>`;
   } else {
-    quadContent = `<div class="layout layout--col layout--stretch gap"><div class="columns" data-overflow-max-cols="2" data-overflow-counter="true"><div class="column">${itemsHtml(purchase, "quadrant", { showIcons: true })}</div></div></div>`;
+    quadContent = `<div class="layout layout--col gap"><div class="columns stretch-y" data-overflow-max-cols="2" data-overflow-counter="true"><div class="column">${toBuyHtml(purchase, "quadrant", { showIcons: true })}</div></div></div>`;
   }
   const quadrant = `${quadContent}${titleBar("Shopping", shortInstance)}`;
 
