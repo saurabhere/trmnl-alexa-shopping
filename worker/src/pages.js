@@ -172,12 +172,41 @@ export function listPickerPage(code, callbackUrl, email, password, lists, defaul
 </html>`;
 }
 
-export function managePage(email, error = "", success = "") {
+const MANAGE_STYLES = `
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #f5f5f5; display: flex; justify-content: center; align-items: center; min-height: 100vh; padding: 20px; }
+    .card { background: white; border-radius: 16px; padding: 40px; max-width: 480px; width: 100%; box-shadow: 0 4px 24px rgba(0,0,0,.08); }
+    h1 { font-size: 24px; margin-bottom: 8px; }
+    .subtitle { color: #666; margin-bottom: 20px; font-size: 14px; line-height: 1.5; }
+    label { display: block; font-weight: 600; margin-bottom: 4px; font-size: 14px; }
+    input, select { width: 100%; padding: 10px 12px; border: 1px solid #ddd; border-radius: 8px; font-size: 16px; margin-bottom: 16px; appearance: auto; }
+    input:focus, select:focus { outline: none; border-color: #ff4d3d; box-shadow: 0 0 0 3px rgba(255,77,61,.15); }
+    button { width: 100%; padding: 12px; background: #ff4d3d; color: white; border: none; border-radius: 8px; font-size: 16px; font-weight: 600; cursor: pointer; }
+    button:hover { opacity: .9; }
+    .current { background: #f0f8f0; border: 1px solid #cde6cd; border-radius: 8px; padding: 12px; margin-bottom: 20px; font-size: 13px; color: #336633; }
+    .current strong { color: #224422; }
+`;
+
+const LOCALE_OPTIONS = [
+  ["en-US", "English"], ["de-DE", "Deutsch"], ["de-CH", "Deutsch (Schweiz)"],
+  ["de-AT", "Deutsch (Österreich)"], ["es-ES", "Español"], ["fr-FR", "Français"],
+  ["fr-CH", "Français (Suisse)"], ["hu-HU", "Magyar"], ["it-IT", "Italiano"],
+  ["it-CH", "Italiano (Svizzera)"], ["nb-NO", "Norsk"], ["nl-NL", "Nederlands"],
+  ["pl-PL", "Polski"], ["pt-BR", "Português"], ["ru-RU", "Русский"],
+  ["sv-SE", "Svenska"], ["tr-TR", "Türkçe"],
+];
+
+function localeSelect(name, selected) {
+  const opts = LOCALE_OPTIONS.map(([val, label]) =>
+    `<option value="${val}"${val === selected ? " selected" : ""}>${label}</option>`
+  ).join("");
+  return `<select id="${name}" name="${name}">${opts}</select>`;
+}
+
+// Step 1: Login to access settings
+export function manageLoginPage(error = "") {
   const errorHtml = error
     ? `<div style="background:#fee;border:1px solid #c00;padding:12px;border-radius:8px;margin-bottom:16px;color:#900;">${escapeHtml(error)}</div>`
-    : "";
-  const successHtml = success
-    ? `<div style="background:#efe;border:1px solid #090;padding:12px;border-radius:8px;margin-bottom:16px;color:#060;">${escapeHtml(success)}</div>`
     : "";
 
   return `<!DOCTYPE html>
@@ -186,30 +215,66 @@ export function managePage(email, error = "", success = "") {
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Manage Bring! Plugin</title>
-  <style>
-    * { box-sizing: border-box; margin: 0; padding: 0; }
-    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #f5f5f5; display: flex; justify-content: center; align-items: center; min-height: 100vh; padding: 20px; }
-    .card { background: white; border-radius: 16px; padding: 40px; max-width: 420px; width: 100%; box-shadow: 0 4px 24px rgba(0,0,0,.08); }
-    h1 { font-size: 24px; margin-bottom: 8px; }
-    .subtitle { color: #666; margin-bottom: 24px; font-size: 14px; }
-    label { display: block; font-weight: 600; margin-bottom: 4px; font-size: 14px; }
-    input { width: 100%; padding: 10px 12px; border: 1px solid #ddd; border-radius: 8px; font-size: 16px; margin-bottom: 16px; }
-    input:focus { outline: none; border-color: #ff4d3d; box-shadow: 0 0 0 3px rgba(255,77,61,.15); }
-    button { width: 100%; padding: 12px; background: #ff4d3d; color: white; border: none; border-radius: 8px; font-size: 16px; font-weight: 600; cursor: pointer; }
-    button:hover { opacity: .9; }
-  </style>
+  <style>${MANAGE_STYLES}</style>
 </head>
 <body>
   <div class="card">
-    <h1>🛒 Manage Bring! Plugin</h1>
-    <p class="subtitle">Connected as <strong>${escapeHtml(email)}</strong></p>
-    ${errorHtml}${successHtml}
-    <form method="POST" action="/manage">
+    <h1>🛒 Manage Plugin</h1>
+    <p class="subtitle">Sign in with your Bring! account to change your settings.</p>
+    ${errorHtml}
+    <form method="POST" action="/manage/login">
       <label for="email">Bring! Email</label>
-      <input type="email" id="email" name="email" required value="${escapeAttr(email)}">
-      <label for="password">New Bring! Password</label>
-      <input type="password" id="password" name="password" required placeholder="Enter new password">
-      <button type="submit">Update Credentials</button>
+      <input type="email" id="email" name="email" required placeholder="you@example.com">
+      <label for="password">Bring! Password</label>
+      <input type="password" id="password" name="password" required>
+      <button type="submit">Sign In</button>
+    </form>
+  </div>
+</body>
+</html>`;
+}
+
+// Step 2: Settings page (after login) — list picker, language, password update
+export function manageSettingsPage(email, password, lists, currentListUuid, currentLocale, error = "", success = "") {
+  const errorHtml = error
+    ? `<div style="background:#fee;border:1px solid #c00;padding:12px;border-radius:8px;margin-bottom:16px;color:#900;">${escapeHtml(error)}</div>`
+    : "";
+  const successHtml = success
+    ? `<div style="background:#efe;border:1px solid #090;padding:12px;border-radius:8px;margin-bottom:16px;color:#060;">${escapeHtml(success)}</div>`
+    : "";
+
+  const listOptions = lists.map((l) => {
+    const selected = l.uuid === currentListUuid ? " selected" : "";
+    return `<option value="${escapeAttr(l.uuid)}"${selected}>${escapeHtml(l.name)}</option>`;
+  }).join("");
+
+  const currentList = lists.find((l) => l.uuid === currentListUuid);
+  const currentListName = currentList ? currentList.name : "Default";
+
+  return `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Settings — Bring! Plugin</title>
+  <style>${MANAGE_STYLES}</style>
+</head>
+<body>
+  <div class="card">
+    <h1>🛒 Plugin Settings</h1>
+    <p class="subtitle">Signed in as <strong>${escapeHtml(email)}</strong></p>
+    <div class="current">
+      Currently showing: <strong>${escapeHtml(currentListName)}</strong>
+    </div>
+    ${errorHtml}${successHtml}
+    <form method="POST" action="/manage/save">
+      <input type="hidden" name="email" value="${escapeAttr(email)}">
+      <input type="hidden" name="password" value="${escapeAttr(password)}">
+      <label for="list_uuid">Shopping List</label>
+      <select id="list_uuid" name="list_uuid">${listOptions}</select>
+      <label for="locale">Item Language</label>
+      ${localeSelect("locale", currentLocale || "en-US")}
+      <button type="submit">Save Settings</button>
     </form>
   </div>
 </body>

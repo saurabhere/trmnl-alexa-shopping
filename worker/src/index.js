@@ -4,7 +4,7 @@
 import { fetchShoppingList, bringLogin, fetchListsForUser } from "./bring.js";
 import { encrypt, decrypt } from "./crypto.js";
 import { generateMarkup } from "./markup.js";
-import { installPage, listPickerPage, managePage } from "./pages.js";
+import { installPage, listPickerPage, manageLoginPage, manageSettingsPage } from "./pages.js";
 import { helpPage } from "./help.js";
 
 const TRMNL_TOKEN_URL = "https://trmnl.com/oauth/token";
@@ -131,6 +131,8 @@ async function finishInstall(code, callbackUrl, email, password, listUuid, listN
   const creds = JSON.stringify({ email, password, listUuid, listName, locale });
   const encrypted = await encrypt(creds, env.ENCRYPTION_KEY);
   await env.USERS.put(`token:${accessToken}`, encrypted);
+  // Reverse lookup so the management page can find the user by email
+  await env.USERS.put(`email:${email.toLowerCase()}`, accessToken);
 
   return Response.redirect(callbackUrl, 302);
 }
@@ -190,33 +192,94 @@ async function handleMarkup(request, env) {
 }
 
 // ---------------------------------------------------------------------------
-// GET /manage
+// GET /manage — show login page (step 1)
 // ---------------------------------------------------------------------------
 
 async function handleManageGet(request) {
-  const url = new URL(request.url);
-  const success = url.searchParams.get("success") || "";
-  return html(managePage("your connected account", "", success ? "Credentials updated successfully!" : ""));
+  return html(manageLoginPage());
 }
 
 // ---------------------------------------------------------------------------
-// POST /manage
+// POST /manage/login — validate creds, show settings page (step 2)
 // ---------------------------------------------------------------------------
 
-async function handleManagePost(request, env) {
+async function handleManageLogin(request, env) {
   const form = await request.formData();
   const email = (form.get("email") || "").trim();
   const password = form.get("password") || "";
 
-  if (!email || !password) return html(managePage(email, "Email and password are required."), 400);
+  if (!email || !password) return html(manageLoginPage("Email and password are required."), 400);
 
+  // Validate creds and fetch lists
+  let lists, defaultUuid;
   try {
-    await bringLogin(email, password);
+    const result = await fetchListsForUser(email, password);
+    lists = result.lists;
+    defaultUuid = result.defaultUuid;
   } catch (e) {
-    return html(managePage(email, `Bring! login failed: ${e.message}`), 400);
+    return html(manageLoginPage(`Bring! login failed: ${e.message}`), 400);
   }
 
-  return html(managePage(email, "", "Credentials verified! To complete the update, reinstall the plugin from your TRMNL dashboard."));
+  // Look up their current settings from KV
+  const accessToken = await env.USERS.get(`email:${email.toLowerCase()}`);
+  let currentListUuid = defaultUuid;
+  let currentLocale = "en-US";
+  if (accessToken) {
+    try {
+      const encrypted = await env.USERS.get(`token:${accessToken}`);
+      if (encrypted) {
+        const creds = JSON.parse(await decrypt(encrypted, env.ENCRYPTION_KEY));
+        currentListUuid = creds.listUuid || defaultUuid;
+        currentLocale = creds.locale || "en-US";
+      }
+    } catch {
+      // Non-fatal — use defaults
+    }
+  }
+
+  return html(manageSettingsPage(email, password, lists, currentListUuid, currentLocale));
+}
+
+// ---------------------------------------------------------------------------
+// POST /manage/save — save updated settings to KV
+// ---------------------------------------------------------------------------
+
+async function handleManageSave(request, env) {
+  const form = await request.formData();
+  const email = (form.get("email") || "").trim();
+  const password = form.get("password") || "";
+  const listUuid = form.get("list_uuid") || "";
+  const locale = form.get("locale") || "en-US";
+
+  if (!email || !password) return html(manageLoginPage("Session expired. Please sign in again."), 400);
+
+  // Re-validate creds
+  let lists;
+  try {
+    const result = await fetchListsForUser(email, password);
+    lists = result.lists;
+  } catch (e) {
+    return html(manageLoginPage(`Bring! login failed: ${e.message}`), 400);
+  }
+
+  // Resolve list name
+  const picked = lists.find((l) => l.uuid === listUuid);
+  const listName = picked ? picked.name : "Shopping List";
+
+  // Find their access token from KV
+  const accessToken = await env.USERS.get(`email:${email.toLowerCase()}`);
+  if (!accessToken) {
+    return html(manageLoginPage("No plugin installation found for this email. Please install the plugin first from your TRMNL dashboard."), 400);
+  }
+
+  // Update their stored credentials
+  const creds = JSON.stringify({ email, password, listUuid, listName, locale });
+  const encrypted = await encrypt(creds, env.ENCRYPTION_KEY);
+  await env.USERS.put(`token:${accessToken}`, encrypted);
+
+  // Show success — re-render settings page
+  const currentListUuid = listUuid;
+  return html(manageSettingsPage(email, password, lists, currentListUuid, locale, "", `Settings saved! Your TRMNL will show "${listName}" in ${locale.split("-")[0].toUpperCase()} on the next refresh.`));
 }
 
 // ---------------------------------------------------------------------------
@@ -246,7 +309,8 @@ export default {
       if (path === "/install/success" && method === "POST") return handleInstallSuccess(request, env);
       if (path === "/markup" && method === "POST") return handleMarkup(request, env);
       if (path === "/manage" && method === "GET") return handleManageGet(request);
-      if (path === "/manage" && method === "POST") return handleManagePost(request, env);
+      if (path === "/manage/login" && method === "POST") return handleManageLogin(request, env);
+      if (path === "/manage/save" && method === "POST") return handleManageSave(request, env);
       if (path === "/uninstall" && method === "POST") return handleUninstall(request, env);
 
       // Knowledge base / help page
