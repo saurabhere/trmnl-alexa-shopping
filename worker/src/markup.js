@@ -31,7 +31,7 @@ function titleBar(title, instance) {
 
 function emptyState(seed) {
   const phrase = randomWitty(seed);
-  return `<div class="flex flex--col gap--small" style="text-align:center"><span class="title title--large" data-value-fit="true">${escapeHtml(phrase)}</span></div>`;
+  return `<div class="flex flex--col gap--small" style="text-align:center"><span class="title title--large" data-value-fit="true" style="font-style:italic">${escapeHtml(phrase)}</span></div>`;
 }
 
 // Adaptive title sizing: fewer items → bigger text to fill available space.
