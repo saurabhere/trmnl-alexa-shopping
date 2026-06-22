@@ -6,7 +6,7 @@
 const BASE = "https://api.getbring.com/rest/v2";
 const API_KEY = "cof4Nc6D8saplXjE3h3HXqHH8m7VU2i1Gs0g85Sp";
 const ICON_BASE = "https://web.getbring.com/assets/images/items";
-const LOCALE_BASE = "https://web.getbring.com/locale/articles";
+const CATALOG_BASE = "https://web.getbring.com/locale/catalog";
 
 // Cache translation maps per locale for the Worker instance lifetime (~minutes).
 const _translationCache = {};
@@ -14,15 +14,22 @@ const _translationCache = {};
 async function getTranslations(locale) {
   const loc = locale || "en-US";
   if (_translationCache[loc]) return _translationCache[loc];
+  const map = {};
   try {
-    const res = await fetch(`${LOCALE_BASE}.${loc}.json`);
+    const res = await fetch(`${CATALOG_BASE}.${loc}.json`);
     if (res.ok) {
-      _translationCache[loc] = await res.json();
+      const data = await res.json();
+      for (const section of data.catalog?.sections || []) {
+        for (const item of section.items || []) {
+          if (item.itemId && item.name) map[item.itemId] = item.name;
+        }
+      }
     }
   } catch {
-    // Non-fatal — we'll just show the raw itemId (often German)
+    // Non-fatal — we'll just show the raw itemId
   }
-  return _translationCache[loc] || {};
+  _translationCache[loc] = map;
+  return map;
 }
 
 function baseHeaders() {
@@ -149,6 +156,7 @@ export async function bringItems(accessToken, userUuid, publicUuid, listUuid, lo
           name: displayName,
           specification: (i.specification || "").trim(),
           iconUrl: customImageUrl || iconUrl(iconKey),
+          isCustomImage: Boolean(customImageUrl),
           category: (detail.userSectionId || "").trim(),
           assignedTo: userMap[detail.assignedTo] || "",
         };

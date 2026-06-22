@@ -149,6 +149,10 @@ async function handleInstallSuccess(request, env) {
   if (body.uuid) {
     await env.USERS.put(`uuid:${body.uuid}`, bearer);
   }
+  const pluginSettingId = body.user?.plugin_setting_id;
+  if (pluginSettingId) {
+    await env.USERS.put(`psid:${bearer}`, String(pluginSettingId));
+  }
   return json({ ok: true });
 }
 
@@ -187,7 +191,7 @@ async function handleMarkup(request, env) {
     });
   }
 
-  const markup = generateMarkup(result.purchase, result.recently, utcNow(), creds.listName);
+  const markup = generateMarkup(result.purchase, result.recently, utcNow(), creds.listName, creds.showIcons !== false);
   return json(markup);
 }
 
@@ -227,6 +231,7 @@ async function handleManageLogin(request, env) {
   const accessToken = await env.USERS.get(`email:${email.toLowerCase()}`);
   let currentListUuid = defaultUuid;
   let currentLocale = "en-US";
+  let currentShowIcons = true;
   if (accessToken) {
     try {
       const encrypted = await env.USERS.get(`token:${accessToken}`);
@@ -234,13 +239,14 @@ async function handleManageLogin(request, env) {
         const creds = JSON.parse(await decrypt(encrypted, env.ENCRYPTION_KEY));
         currentListUuid = creds.listUuid || defaultUuid;
         currentLocale = creds.locale || "en-US";
+        currentShowIcons = creds.showIcons !== false;
       }
     } catch {
       // Non-fatal — use defaults
     }
   }
 
-  return html(manageSettingsPage(email, password, lists, currentListUuid, currentLocale, "", "", uuid));
+  return html(manageSettingsPage(email, password, lists, currentListUuid, currentLocale, "", "", uuid, currentShowIcons));
 }
 
 // ---------------------------------------------------------------------------
@@ -254,6 +260,7 @@ async function handleManageSave(request, env) {
   const listUuid = form.get("list_uuid") || "";
   const locale = form.get("locale") || "en-US";
   const uuid = form.get("uuid") || "";
+  const showIcons = form.get("show_icons") !== "no";
 
   if (!email || !password) return html(manageLoginPage("Session expired. Please sign in again.", uuid), 400);
 
@@ -277,16 +284,17 @@ async function handleManageSave(request, env) {
   }
 
   // Update their stored credentials
-  const creds = JSON.stringify({ email, password, listUuid, listName, locale });
+  const creds = JSON.stringify({ email, password, listUuid, listName, locale, showIcons });
   const encrypted = await encrypt(creds, env.ENCRYPTION_KEY);
   await env.USERS.put(`token:${accessToken}`, encrypted);
 
   // Redirect back to TRMNL with forced screen refresh
-  if (uuid) {
-    return Response.redirect(`https://trmnl.com/plugin_settings/${uuid}?force_refresh=true`, 302);
+  const pluginSettingId = await env.USERS.get(`psid:${accessToken}`);
+  if (pluginSettingId) {
+    return Response.redirect(`https://trmnl.com/plugin_settings/${pluginSettingId}/edit?force_refresh=true`, 302);
   }
 
-  return html(manageSettingsPage(email, password, lists, listUuid, locale, "", `Settings saved! Your TRMNL will show "${listName}" on the next refresh.`, ""));
+  return html(manageSettingsPage(email, password, lists, listUuid, locale, "", `Settings saved! Your TRMNL will show "${listName}" on the next refresh.`, "", showIcons));
 }
 
 // ---------------------------------------------------------------------------

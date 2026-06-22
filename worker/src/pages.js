@@ -236,7 +236,7 @@ export function manageLoginPage(error = "", uuid = "") {
 }
 
 // Step 2: Settings page (after login) — list picker, language, password update
-export function manageSettingsPage(email, password, lists, currentListUuid, currentLocale, error = "", success = "", uuid = "") {
+export function manageSettingsPage(email, password, lists, currentListUuid, currentLocale, error = "", success = "", uuid = "", currentShowIcons = true) {
   const errorHtml = error
     ? `<div style="background:#fee;border:1px solid #c00;padding:12px;border-radius:8px;margin-bottom:16px;color:#900;">${escapeHtml(error)}</div>`
     : "";
@@ -276,6 +276,11 @@ export function manageSettingsPage(email, password, lists, currentListUuid, curr
       <select id="list_uuid" name="list_uuid">${listOptions}</select>
       <label for="locale">Item Language</label>
       ${localeSelect("locale", currentLocale || "en-US")}
+      <label for="show_icons">Show Icons</label>
+      <select id="show_icons" name="show_icons" style="margin-bottom:16px">
+        <option value="yes"${currentShowIcons ? " selected" : ""}>Yes — show item icons</option>
+        <option value="no"${!currentShowIcons ? " selected" : ""}>No — text only (more items visible)</option>
+      </select>
       <button type="submit">Save Settings</button>
     </form>
   </div>

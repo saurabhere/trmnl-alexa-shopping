@@ -63,20 +63,38 @@ function titleSizeClass(count, layout) {
     if (count <= 5) return "title title--base lg:title--large";
     return "title title--small lg:title--base";
   }
+  // Full: thresholds doubled — 2 columns split items, so each column is half
   if (count === 1) return "title title--xxlarge";
-  if (count <= 4) return "title title--xlarge lg:title--xxlarge";
-  if (count <= 8) return "title title--large lg:title--xlarge";
-  if (count <= 14) return "title title--base lg:title--large";
+  if (count <= 8) return "title title--xlarge lg:title--xxlarge";
+  if (count <= 16) return "title title--large lg:title--xlarge";
+  if (count <= 28) return "title title--base lg:title--large";
   return "title title--small lg:title--base";
+}
+
+function iconSize(count, layout) {
+  if (layout === "quadrant") return count <= 2 ? 24 : 20;
+  if (layout === "half") {
+    if (count === 1) return 40;
+    if (count <= 3) return 36;
+    if (count <= 5) return 28;
+    return 24;
+  }
+  // Full: doubled thresholds to match 2-column text sizing
+  if (count === 1) return 48;
+  if (count <= 8) return 40;
+  if (count <= 16) return 36;
+  if (count <= 28) return 28;
+  return 24;
 }
 
 const GENERIC_ICON = `data:image/svg+xml;base64,${btoa('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" fill="none" stroke="black" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"><path d="M6 20h36l-4 20H10z"/><path d="M16 20l8-14 8 14"/><line x1="24" y1="26" x2="24" y2="36"/><line x1="16" y1="26" x2="17" y2="36"/><line x1="32" y1="26" x2="31" y2="36"/></svg>')}`;
 
-function iconHtml(item, showIcons) {
+function iconHtml(item, showIcons, size) {
   if (!showIcons) return `<div class="meta"></div>`;
   const src = item.iconUrl ? escapeHtml(item.iconUrl) : GENERIC_ICON;
   const onerror = item.iconUrl ? ` onerror="this.src='${GENERIC_ICON}'"` : '';
-  return `<div class="icon"><img src="${src}" class="w--[32px] h--[32px] lg:w--[40px] lg:h--[40px]" style="filter:brightness(0); object-fit:contain"${onerror} /></div>`;
+  const filter = item.isCustomImage ? "" : "filter:brightness(0); ";
+  return `<div class="icon"><img src="${src}" style="${filter}width:${size}px; height:${size}px; object-fit:contain"${onerror} /></div>`;
 }
 
 function assignedBadge(item) {
@@ -87,11 +105,12 @@ function assignedBadge(item) {
 // Render a flat list of item divs
 function renderItems(items, layout, totalCount, opts = {}) {
   const cls = titleSizeClass(totalCount, layout);
+  const icoSize = iconSize(totalCount, layout);
   return items.map((item) => {
     const spec = opts.showSpec && item.specification
       ? `<span class="description">${escapeHtml(item.specification)}</span>` : "";
     const badge = assignedBadge(item);
-    const icon = iconHtml(item, opts.showIcons);
+    const icon = iconHtml(item, opts.showIcons, icoSize);
     return `<div class="item">${icon}<div class="content"><span class="${cls}">${escapeHtml(item.name)}${badge}</span>${spec}</div></div>`;
   }).join("\n");
 }
@@ -130,7 +149,7 @@ function footerStrip(recentItems, seed) {
   return parts.join("");
 }
 
-export function generateMarkup(purchase, recently, updatedAt, listName) {
+export function generateMarkup(purchase, recently, updatedAt, listName, showIcons = true) {
   const count = purchase.length;
   const countLabel = `${count} item${count !== 1 ? "s" : ""}`;
   const displayName = listName || "Shopping List";
@@ -155,7 +174,7 @@ export function generateMarkup(purchase, recently, updatedAt, listName) {
     fullContent = `<div class="layout layout--center">${emptyState(seed)}</div>`;
   } else {
     const header = greetingHeader(count, utcHour);
-    const cols = columnsHtml(purchase, "full", 2, { showSpec: true, showIcons: true });
+    const cols = columnsHtml(purchase, "full", 2, { showSpec: true, showIcons });
     const footer = footerStrip(recentlySlice, seed);
     fullContent = `<div class="layout layout--col gap--small">${header}${cols}${footer}</div>`;
   }
@@ -166,7 +185,7 @@ export function generateMarkup(purchase, recently, updatedAt, listName) {
   if (count === 0) {
     halfHContent = `<div class="layout layout--center">${emptyState(seed)}</div>`;
   } else {
-    const cols = columnsHtml(purchase, "half", 2, { showIcons: true });
+    const cols = columnsHtml(purchase, "half", 2, { showIcons });
     const footer = footerStrip(recentlySlice.slice(0, 3), seed);
     halfHContent = `<div class="layout layout--col gap--small">${cols}${footer}</div>`;
   }
@@ -177,7 +196,7 @@ export function generateMarkup(purchase, recently, updatedAt, listName) {
   if (count === 0) {
     halfVContent = `<div class="layout layout--center">${emptyState(seed)}</div>`;
   } else {
-    const cols = columnsHtml(purchase, "half", 1, { showSpec: true, showIcons: true });
+    const cols = columnsHtml(purchase, "half", 1, { showSpec: true, showIcons });
     const footer = footerStrip(recentlySlice.slice(0, 3), seed);
     halfVContent = `<div class="layout layout--col gap--small">${cols}${footer}</div>`;
   }
@@ -188,7 +207,7 @@ export function generateMarkup(purchase, recently, updatedAt, listName) {
   if (count === 0) {
     quadContent = `<div class="layout layout--center">${emptyState(seed)}</div>`;
   } else {
-    const cols = columnsHtml(purchase, "quadrant", 2, { showIcons: true });
+    const cols = columnsHtml(purchase, "quadrant", 2, { showIcons });
     quadContent = `<div class="layout layout--col gap">${cols}</div>`;
   }
   const quadrant = `${quadContent}${titleBar("Shopping", shortInst)}`;
