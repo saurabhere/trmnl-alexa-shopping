@@ -204,7 +204,7 @@ function localeSelect(name, selected) {
 }
 
 // Step 1: Login to access settings
-export function manageLoginPage(error = "") {
+export function manageLoginPage(error = "", uuid = "") {
   const errorHtml = error
     ? `<div style="background:#fee;border:1px solid #c00;padding:12px;border-radius:8px;margin-bottom:16px;color:#900;">${escapeHtml(error)}</div>`
     : "";
@@ -223,6 +223,7 @@ export function manageLoginPage(error = "") {
     <p class="subtitle">Sign in with your Bring! account to change your settings.</p>
     ${errorHtml}
     <form method="POST" action="/manage/login">
+      <input type="hidden" name="uuid" value="${escapeAttr(uuid)}">
       <label for="email">Bring! Email</label>
       <input type="email" id="email" name="email" required placeholder="you@example.com">
       <label for="password">Bring! Password</label>
@@ -235,7 +236,7 @@ export function manageLoginPage(error = "") {
 }
 
 // Step 2: Settings page (after login) — list picker, language, password update
-export function manageSettingsPage(email, password, lists, currentListUuid, currentLocale, error = "", success = "") {
+export function manageSettingsPage(email, password, lists, currentListUuid, currentLocale, error = "", success = "", uuid = "") {
   const errorHtml = error
     ? `<div style="background:#fee;border:1px solid #c00;padding:12px;border-radius:8px;margin-bottom:16px;color:#900;">${escapeHtml(error)}</div>`
     : "";
@@ -270,6 +271,7 @@ export function manageSettingsPage(email, password, lists, currentListUuid, curr
     <form method="POST" action="/manage/save">
       <input type="hidden" name="email" value="${escapeAttr(email)}">
       <input type="hidden" name="password" value="${escapeAttr(password)}">
+      <input type="hidden" name="uuid" value="${escapeAttr(uuid)}">
       <label for="list_uuid">Shopping List</label>
       <select id="list_uuid" name="list_uuid">${listOptions}</select>
       <label for="locale">Item Language</label>

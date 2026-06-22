@@ -1,5 +1,5 @@
 // Generate TRMNL markup for all 4 layout sizes.
-// Manual column splitting (overflow engine doesn't fill space, only prevents overflow).
+// Uses Smart Columns (overflow engine) for automatic column distribution.
 
 const WITTY_EMPTY = [
   "Cart's empty. Fridge is judging you.",
@@ -49,31 +49,34 @@ function titleBar(title, instance) {
 
 function emptyState(seed) {
   const phrase = pick(WITTY_EMPTY, seed);
-  return `<div class="flex flex--col gap--small" style="text-align:center"><span class="title title--large" data-value-fit="true" style="font-style:italic">${escapeHtml(phrase)}</span></div>`;
+  return `<div class="flex flex--col gap--small" style="text-align:center"><span class="title title--large lg:title--xlarge" data-value-fit="true" style="font-style:italic">${escapeHtml(phrase)}</span></div>`;
 }
 
 function titleSizeClass(count, layout) {
-  if (layout === "quadrant") return count <= 2 ? "title title--base" : "title title--small";
+  if (layout === "quadrant") {
+    if (count <= 2) return "title title--base lg:title--large";
+    return "title title--small lg:title--base";
+  }
   if (layout === "half") {
-    if (count === 1) return "title title--xlarge";
-    if (count <= 3) return "title title--large";
-    if (count <= 5) return "title title--base";
-    return "title title--small";
+    if (count === 1) return "title title--xlarge lg:title--xxlarge";
+    if (count <= 3) return "title title--large lg:title--xlarge";
+    if (count <= 5) return "title title--base lg:title--large";
+    return "title title--small lg:title--base";
   }
   if (count === 1) return "title title--xxlarge";
-  if (count <= 4) return "title title--xlarge";
-  if (count <= 8) return "title title--large";
-  if (count <= 14) return "title title--base";
-  return "title title--small";
+  if (count <= 4) return "title title--xlarge lg:title--xxlarge";
+  if (count <= 8) return "title title--large lg:title--xlarge";
+  if (count <= 14) return "title title--base lg:title--large";
+  return "title title--small lg:title--base";
 }
 
-const GENERIC_ICON = `data:image/svg+xml,${encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" fill="none" stroke="black" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"><path d="M6 20h36l-4 20H10z"/><path d="M16 20l8-14 8 14"/><line x1="24" y1="26" x2="24" y2="36"/><line x1="16" y1="26" x2="17" y2="36"/><line x1="32" y1="26" x2="31" y2="36"/></svg>')}`;
+const GENERIC_ICON = `data:image/svg+xml;base64,${btoa('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" fill="none" stroke="black" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"><path d="M6 20h36l-4 20H10z"/><path d="M16 20l8-14 8 14"/><line x1="24" y1="26" x2="24" y2="36"/><line x1="16" y1="26" x2="17" y2="36"/><line x1="32" y1="26" x2="31" y2="36"/></svg>')}`;
 
 function iconHtml(item, showIcons) {
   if (!showIcons) return `<div class="meta"></div>`;
-  const imgStyle = `filter:brightness(0); width:24px; height:24px; object-fit:contain; vertical-align:middle`;
-  if (!item.iconUrl) return `<div class="icon"><img src="${GENERIC_ICON}" style="${imgStyle}" /></div>`;
-  return `<div class="icon"><img src="${escapeHtml(item.iconUrl)}" style="${imgStyle}" onerror="this.src='${GENERIC_ICON}'" /></div>`;
+  const src = item.iconUrl ? escapeHtml(item.iconUrl) : GENERIC_ICON;
+  const onerror = item.iconUrl ? ` onerror="this.src='${GENERIC_ICON}'"` : '';
+  return `<div class="icon"><img src="${src}" class="w--[32px] h--[32px] lg:w--[40px] lg:h--[40px]" style="filter:brightness(0); object-fit:contain"${onerror} /></div>`;
 }
 
 function assignedBadge(item) {
@@ -93,17 +96,15 @@ function renderItems(items, layout, totalCount, opts = {}) {
   }).join("\n");
 }
 
-// Build columns manually — the overflow engine won't spread items to fill space.
+// Use Smart Columns — let the overflow engine distribute items across columns.
 function columnsHtml(items, layout, maxCols, opts = {}) {
   const count = items.length;
   if (count === 0) return "";
-  if (count <= 2 || maxCols <= 1) {
-    return `<div class="flex flex--col gap stretch-y">${renderItems(items, layout, count, opts)}</div>`;
-  }
-  const half = Math.ceil(count / 2);
-  const col1 = items.slice(0, half);
-  const col2 = items.slice(half);
-  return `<div class="columns gap--medium stretch-y"><div class="column"><div class="flex flex--col gap">${renderItems(col1, layout, count, opts)}</div></div><div class="column"><div class="flex flex--col gap">${renderItems(col2, layout, count, opts)}</div></div></div>`;
+
+  const itemsHtml = renderItems(items, layout, count, opts);
+  const lgCols = Math.min(maxCols + 1, 4);
+
+  return `<div class="columns stretch-y" data-overflow-max-cols="${maxCols}" data-overflow-max-cols-lg="${lgCols}" data-overflow-counter="true"><div class="column">${itemsHtml}</div></div>`;
 }
 
 function greetingHeader(count, utcHour) {
@@ -112,11 +113,11 @@ function greetingHeader(count, utcHour) {
   return `<div class="bg--gray-70 rounded--medium" style="padding:8px 14px"><div class="flex gap--small" style="align-items:center;justify-content:space-between"><span class="label label--medium" style="font-weight:700">${greet}</span><span class="label label--small">${suffix}</span></div></div>`;
 }
 
-function progressBar(purchaseCount, recentCount) {
+function completionPct(purchaseCount, recentCount) {
   const total = purchaseCount + recentCount;
   if (total === 0) return "";
   const pct = Math.round((recentCount / total) * 100);
-  return `<div class="progress-bar progress-bar--xsmall"><div class="content"><span class="label label--small label--gray">${recentCount} of ${total} done</span><span class="value value--xxsmall">${pct}%</span></div><div class="track"><div class="fill" style="width:${pct}%"></div></div></div>`;
+  return `${pct}% completed`;
 }
 
 function footerStrip(recentItems, seed) {
@@ -144,6 +145,9 @@ export function generateMarkup(purchase, recently, updatedAt, listName) {
     : countLabel;
 
   const recentlySlice = recently.slice(0, 5);
+  const pctLabel = completionPct(count, recentlySlice.length);
+  const fullInst = pctLabel ? `${fullInstance} · ${pctLabel}` : fullInstance;
+  const shortInst = pctLabel ? `${shortInstance} · ${pctLabel}` : shortInstance;
 
   // -- Full --
   let fullContent;
@@ -152,11 +156,10 @@ export function generateMarkup(purchase, recently, updatedAt, listName) {
   } else {
     const header = greetingHeader(count, utcHour);
     const cols = columnsHtml(purchase, "full", 2, { showSpec: true, showIcons: true });
-    const progress = progressBar(count, recentlySlice.length);
     const footer = footerStrip(recentlySlice, seed);
-    fullContent = `<div class="layout layout--col gap--small">${header}${cols}${progress}${footer}</div>`;
+    fullContent = `<div class="layout layout--col gap--small">${header}${cols}${footer}</div>`;
   }
-  const full = `${fullContent}${titleBar("Shopping List", fullInstance)}`;
+  const full = `${fullContent}${titleBar("Shopping List", fullInst)}`;
 
   // -- Half Horizontal --
   let halfHContent;
@@ -167,7 +170,7 @@ export function generateMarkup(purchase, recently, updatedAt, listName) {
     const footer = footerStrip(recentlySlice.slice(0, 3), seed);
     halfHContent = `<div class="layout layout--col gap--small">${cols}${footer}</div>`;
   }
-  const halfH = `${halfHContent}${titleBar("Shopping List", shortInstance)}`;
+  const halfH = `${halfHContent}${titleBar("Shopping List", shortInst)}`;
 
   // -- Half Vertical --
   let halfVContent;
@@ -178,7 +181,7 @@ export function generateMarkup(purchase, recently, updatedAt, listName) {
     const footer = footerStrip(recentlySlice.slice(0, 3), seed);
     halfVContent = `<div class="layout layout--col gap--small">${cols}${footer}</div>`;
   }
-  const halfV = `${halfVContent}${titleBar("Shopping List", shortInstance)}`;
+  const halfV = `${halfVContent}${titleBar("Shopping List", shortInst)}`;
 
   // -- Quadrant --
   let quadContent;
@@ -188,7 +191,7 @@ export function generateMarkup(purchase, recently, updatedAt, listName) {
     const cols = columnsHtml(purchase, "quadrant", 2, { showIcons: true });
     quadContent = `<div class="layout layout--col gap">${cols}</div>`;
   }
-  const quadrant = `${quadContent}${titleBar("Shopping", shortInstance)}`;
+  const quadrant = `${quadContent}${titleBar("Shopping", shortInst)}`;
 
   return {
     markup: full,

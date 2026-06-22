@@ -196,7 +196,9 @@ async function handleMarkup(request, env) {
 // ---------------------------------------------------------------------------
 
 async function handleManageGet(request) {
-  return html(manageLoginPage());
+  const url = new URL(request.url);
+  const uuid = url.searchParams.get("uuid") || "";
+  return html(manageLoginPage("", uuid));
 }
 
 // ---------------------------------------------------------------------------
@@ -207,8 +209,9 @@ async function handleManageLogin(request, env) {
   const form = await request.formData();
   const email = (form.get("email") || "").trim();
   const password = form.get("password") || "";
+  const uuid = form.get("uuid") || "";
 
-  if (!email || !password) return html(manageLoginPage("Email and password are required."), 400);
+  if (!email || !password) return html(manageLoginPage("Email and password are required.", uuid), 400);
 
   // Validate creds and fetch lists
   let lists, defaultUuid;
@@ -217,7 +220,7 @@ async function handleManageLogin(request, env) {
     lists = result.lists;
     defaultUuid = result.defaultUuid;
   } catch (e) {
-    return html(manageLoginPage(`Bring! login failed: ${e.message}`), 400);
+    return html(manageLoginPage(`Bring! login failed: ${e.message}`, uuid), 400);
   }
 
   // Look up their current settings from KV
@@ -237,7 +240,7 @@ async function handleManageLogin(request, env) {
     }
   }
 
-  return html(manageSettingsPage(email, password, lists, currentListUuid, currentLocale));
+  return html(manageSettingsPage(email, password, lists, currentListUuid, currentLocale, "", "", uuid));
 }
 
 // ---------------------------------------------------------------------------
@@ -250,8 +253,9 @@ async function handleManageSave(request, env) {
   const password = form.get("password") || "";
   const listUuid = form.get("list_uuid") || "";
   const locale = form.get("locale") || "en-US";
+  const uuid = form.get("uuid") || "";
 
-  if (!email || !password) return html(manageLoginPage("Session expired. Please sign in again."), 400);
+  if (!email || !password) return html(manageLoginPage("Session expired. Please sign in again.", uuid), 400);
 
   // Re-validate creds
   let lists;
@@ -259,7 +263,7 @@ async function handleManageSave(request, env) {
     const result = await fetchListsForUser(email, password);
     lists = result.lists;
   } catch (e) {
-    return html(manageLoginPage(`Bring! login failed: ${e.message}`), 400);
+    return html(manageLoginPage(`Bring! login failed: ${e.message}`, uuid), 400);
   }
 
   // Resolve list name
@@ -269,7 +273,7 @@ async function handleManageSave(request, env) {
   // Find their access token from KV
   const accessToken = await env.USERS.get(`email:${email.toLowerCase()}`);
   if (!accessToken) {
-    return html(manageLoginPage("No plugin installation found for this email. Please install the plugin first from your TRMNL dashboard."), 400);
+    return html(manageLoginPage("No plugin installation found for this email. Please install the plugin first from your TRMNL dashboard.", uuid), 400);
   }
 
   // Update their stored credentials
@@ -277,9 +281,12 @@ async function handleManageSave(request, env) {
   const encrypted = await encrypt(creds, env.ENCRYPTION_KEY);
   await env.USERS.put(`token:${accessToken}`, encrypted);
 
-  // Show success — re-render settings page
-  const currentListUuid = listUuid;
-  return html(manageSettingsPage(email, password, lists, currentListUuid, locale, "", `Settings saved! Your TRMNL will show "${listName}" in ${locale.split("-")[0].toUpperCase()} on the next refresh.`));
+  // Redirect back to TRMNL with forced screen refresh
+  if (uuid) {
+    return Response.redirect(`https://trmnl.com/plugin_settings/${uuid}?force_refresh=true`, 302);
+  }
+
+  return html(manageSettingsPage(email, password, lists, listUuid, locale, "", `Settings saved! Your TRMNL will show "${listName}" on the next refresh.`, ""));
 }
 
 // ---------------------------------------------------------------------------
