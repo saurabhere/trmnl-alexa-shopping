@@ -143,9 +143,9 @@ function footerStrip(recentItems, seed) {
   const parts = [];
   if (recentItems.length) {
     const names = recentItems.map((i) => escapeHtml(i.name)).join(" · ");
-    parts.push(`<div class="divider"></div><span class="label label--small label--gray">Got: ${names}</span>`);
+    parts.push(`<div class="divider"></div><span class="label label--small label--gray 1bit:text--black">Got: ${names}</span>`);
   }
-  parts.push(`<div class="flex" style="justify-content:center"><span class="label label--small label--gray" style="font-style:italic">${escapeHtml(pick(FOOTER_TAGLINES, seed + 3))}</span></div>`);
+  parts.push(`<div class="flex" style="justify-content:center"><span class="label label--small label--gray 1bit:text--black" style="font-style:italic">${escapeHtml(pick(FOOTER_TAGLINES, seed + 3))}</span></div>`);
   return parts.join("");
 }
 
